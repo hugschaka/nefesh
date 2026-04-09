@@ -1,0 +1,23 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Lecturers upload their own source documents
+    match /lessons/{lecturerId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == lecturerId;
+    }
+
+    // Bot-generated filtered presentations — authenticated read only
+    match /presentations/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if false; // written by bot via Admin SDK only
+    }
+
+    // Debug screenshots — admin only
+    match /debug-screenshots/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.token.role == 'admin';
+      allow write: if false;
+    }
+  }
+}

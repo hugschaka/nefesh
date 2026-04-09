@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function role() {
+      return request.auth.token.role;
+    }
+    match /users/{uid} {
+      allow read, write: if request.auth.uid == uid || role() == 'admin';
+    }
+    match /lessons/{id} {
+      allow read: if resource.data.isPublished == true || role() in ['lecturer', 'admin'];
+      allow create: if role() in ['lecturer', 'admin'];
+      allow update, delete: if role() == 'admin' || (role() == 'lecturer' && resource.data.lecturerId == request.auth.uid);
+    }
+    match /jobs/{id} {
+      allow read: if role() in ['lecturer', 'admin'];
+      allow create: if role() in ['lecturer', 'admin'];
+      allow update, delete: if role() == 'admin';
+    }
+    match /ads/{id} {
+      allow read: if true;
+      allow write: if role() == 'admin';
+    }
+    match /alerts/{id} {
+      allow read, write: if role() == 'admin';
+    }
+    // Announcements — public read, writes only via Admin SDK (API routes)
+    match /site_config/{document} {
+      allow read: if true;
+      allow write: if false;
+    }
+    // Registrations — anyone can submit, only admin can read/manage (via Admin SDK)
+    match /registrations/{id} {
+      allow create: if true;
+      allow read, update, delete: if false;
+    }
+  }
+}

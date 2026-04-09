@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-cyan: #00b6e5;
+  --color-blue-hover: #1c57ff;
+  --color-dark: #383838;
+  --color-body: #666666;
+  --color-bg-light: #f3f3f3;
+  --color-footer-bg: #3a3a3a;
+  --font-primary: "Open Sans Hebrew", Arial, sans-serif;
+  --font-accent: "Heebo", Arial, sans-serif;
+  --nav-height: 70px;
+  --radius-pill: 9999px;
+}
+
+html {
+  direction: rtl;
+  font-family: var(--font-primary);
+  color: var(--color-body);
+  background-color: #ffffff;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg-light);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-cyan);
+  border-radius: var(--radius-pill);
+}
+
+/* ── Utility classes ── */
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-pill px-6 py-2.5 text-sm font-semibold text-white transition-colors duration-200;
+    background-color: var(--color-cyan);
+  }
+  .btn-primary:hover {
+    background-color: var(--color-blue-hover);
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-pill border-2 px-6 py-2.5 text-sm font-semibold transition-colors duration-200;
+    border-color: var(--color-cyan);
+    color: var(--color-cyan);
+    background: transparent;
+  }
+  .btn-secondary:hover {
+    background-color: var(--color-cyan);
+    @apply text-white;
+  }
+
+  .card {
+    @apply rounded-2xl bg-white shadow-md overflow-hidden transition-shadow duration-200;
+  }
+  .card:hover {
+    @apply shadow-xl;
+  }
+
+  .input-field {
+    @apply w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-800 outline-none transition;
+    &:focus {
+      border-color: var(--color-cyan);
+      box-shadow: 0 0 0 2px rgb(0 182 229 / 0.2);
+    }
+  }
+
+  .section-title {
+    @apply text-2xl font-bold;
+    color: var(--color-dark);
+    font-family: var(--font-accent);
+  }
+
+  .progress-bar-track {
+    @apply h-3 w-full overflow-hidden rounded-pill bg-gray-200;
+  }
+
+  .progress-bar-fill {
+    @apply h-full rounded-pill transition-all duration-500;
+    background-color: var(--color-cyan);
+  }
+}
+
+/* ── Vertical Scroller Animation ── */
+@keyframes scroll-vertical {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+.animate-scroll-vertical {
+  animation: scroll-vertical 30s linear infinite;
+  will-change: transform;
+}
