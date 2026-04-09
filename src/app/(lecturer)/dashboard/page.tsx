@@ -10,6 +10,8 @@ import {
   serverTimestamp,
   orderBy,
   Timestamp,
+  doc,
+  updateDoc,
 } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
@@ -23,8 +25,8 @@ const ALLOWED_TYPES = [
   'application/pdf',
   'audio/mpeg',
   'video/mp4',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-  'application/msword', // .doc
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/msword',
 ];
 const ALLOWED_EXT = ['.pdf', '.mp3', '.mp4', '.docx', '.doc'];
 
@@ -32,7 +34,7 @@ function resolveFileType(mimeType: string): Lesson['fileType'] {
   if (mimeType === 'application/pdf') return 'pdf';
   if (mimeType === 'audio/mpeg') return 'mp3';
   if (mimeType === 'video/mp4') return 'mp4';
-  return 'pdf'; // .docx/.doc treated as document type
+  return 'pdf';
 }
 
 type UploadPhase = 'idle' | 'uploading' | 'processing';
@@ -58,21 +60,17 @@ export default function LecturerDashboardPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [debugLog, setDebugLog] = useState<string[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [approvingJobId, setApprovingJobId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auth state
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsub();
   }, []);
 
-  // Real-time jobs for this lecturer
   useEffect(() => {
     if (!user) return;
 
-    // We listen to /jobs ordered by createdAt desc, filtered by lecturerId via lessonIds.
-    // Simpler: listen to all jobs where lecturerId field matches — requires a field on jobs.
-    // We store lecturerId on the job doc at creation time.
     const q = query(
       collection(db, 'jobs'),
       where('lecturerId', '==', user.uid),
@@ -90,6 +88,11 @@ export default function LecturerDashboardPage() {
           progressLabel: raw.progressLabel ?? '',
           status: raw.status ?? 'queued',
           errorScreenshotUrl: raw.errorScreenshotUrl,
+          podcastUrl: raw.podcastUrl,
+          quizUrl: raw.quizUrl,
+          presentationUrl: raw.presentationUrl,
+          rawPresentationUrl: raw.rawPresentationUrl,
+          notebookUrl: raw.notebookUrl,
           createdAt:
             raw.createdAt instanceof Timestamp
               ? raw.createdAt.toMillis()
@@ -144,7 +147,6 @@ export default function LecturerDashboardPage() {
 
     log(`User: ${user.uid}`);
 
-    // Validate title
     const parsed = UploadLessonSchema.safeParse({ title });
     if (!parsed.success) {
       setFormError(parsed.error.issues[0]?.message ?? 'שגיאת אימות');
@@ -164,12 +166,10 @@ export default function LecturerDashboardPage() {
     try {
       const fileType = resolveFileType(file.type);
 
-      // 1. Get Firebase ID token
       log('מאמת זהות...');
       const token = await user.getIdToken(true);
       log('אימות OK — מעלה...');
 
-      // 2. Upload directly via Firebase Storage REST API (no SDK)
       const timestamp = Date.now();
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const storagePath = `lessons/${user.uid}/${timestamp}_${safeName}`;
@@ -197,16 +197,13 @@ export default function LecturerDashboardPage() {
       log('העלאה הושלמה!');
       setUploadProgress(100);
 
-      // Build Firebase download URL from the returned metadata
       const downloadToken = uploadData.downloadTokens;
       const fileUrl = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodedPath}?alt=media&token=${downloadToken}`;
       log('קיבלנו URL — יוצר שיעור...');
 
-      // Switch to processing phase — file is in Storage
       setUploadPhase('processing');
       setUploadProgress(0);
 
-      // 2 & 3. Create lesson + job via server API (bypasses Firebase client SDK)
       log('יוצר שיעור ו-job דרך השרת...');
       const createResp = await fetch('/api/jobs', {
         method: 'POST',
@@ -230,7 +227,6 @@ export default function LecturerDashboardPage() {
       setFile(null);
       setUploadProgress(0);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      // uploadPhase stays 'processing' — the job row will show progress
     } catch (err: unknown) {
       const code = (err as any)?.code ?? '';
       const msg = err instanceof Error ? err.message : String(err);
@@ -242,14 +238,56 @@ export default function LecturerDashboardPage() {
 
   function handleJobDone(job: Job) {
     if (job.status === 'pending_approval') {
-      fireNotification('נפש יהודי', `השיעור "${job.lessonTitle}" עובד ✓ — ממתין לאישור מנהל`);
+      fireNotification('נפש יהודי', `השיעור "${job.lessonTitle}" עובד ✓ — ממתין לאישור שלך`);
     } else if (job.status === 'published') {
       fireNotification('נפש יהודי', `השיעור "${job.lessonTitle}" פורסם ומוצג לתלמידים 🎉`);
     }
   }
 
+  async function approveLessonForPublishing(job: Job) {
+    setApprovingJobId(job.id);
+    try {
+      await Promise.all([
+        updateDoc(doc(db, 'lessons', job.lessonId), {
+          isPublished: true,
+          updatedAt: serverTimestamp(),
+        }),
+        updateDoc(doc(db, 'jobs', job.id), {
+          status: 'published',
+          progressLabel: 'פורסם',
+          updatedAt: serverTimestamp(),
+        }),
+      ]);
+      fireNotification('נפש יהודי', `✓ השיעור "${job.lessonTitle}" פורסם בהצלחה!`);
+      setJobs(jobs.filter(j => j.id !== job.id));
+    } catch (err) {
+      console.error('Approval error:', err);
+      alert('שגיאה בהעלאת אישור');
+    } finally {
+      setApprovingJobId(null);
+    }
+  }
+
+  async function rejectLesson(job: Job) {
+    setApprovingJobId(job.id);
+    try {
+      await updateDoc(doc(db, 'jobs', job.id), {
+        status: 'rejected',
+        progressLabel: 'נדחה על ידי המרצה',
+        updatedAt: serverTimestamp(),
+      });
+      setJobs(jobs.filter(j => j.id !== job.id));
+    } catch (err) {
+      console.error('Rejection error:', err);
+      alert('שגיאה בדחיית הלימוד');
+    } finally {
+      setApprovingJobId(null);
+    }
+  }
+
   const activeJobs = jobs.filter((j) => ['queued', 'processing'].includes(j.status));
-  const doneJobs = jobs.filter((j) => !['queued', 'processing'].includes(j.status));
+  const pendingApprovalJobs = jobs.filter((j) => j.status === 'pending_approval');
+  const doneJobs = jobs.filter((j) => !['queued', 'processing', 'pending_approval'].includes(j.status));
 
   return (
     <>
@@ -257,7 +295,6 @@ export default function LecturerDashboardPage() {
       <main className="min-h-[calc(100vh-70px)] bg-[#f3f3f3] px-4 py-10">
         <div className="mx-auto max-w-3xl space-y-10">
 
-          {/* ── Preview button ── */}
           <div className="flex justify-end">
             <a
               href="/lessons"
@@ -269,7 +306,6 @@ export default function LecturerDashboardPage() {
             </a>
           </div>
 
-          {/* ── Upload form ── */}
           <section className="rounded-2xl bg-white p-6 shadow-md">
             <h1 className="section-title mb-6">העלאת שיעור חדש</h1>
 
@@ -279,14 +315,12 @@ export default function LecturerDashboardPage() {
               </div>
             )}
 
-            {/* ── Debug log (temporary) ── */}
             {debugLog.length > 0 && (
               <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-mono text-gray-600 space-y-0.5 leading-5" dir="ltr">
                 {debugLog.map((line, i) => <div key={i}>{line}</div>)}
               </div>
             )}
 
-            {/* ── Processing banner ── */}
             {uploadPhase === 'processing' && (
               <div className="mb-4 rounded-xl border border-[#00b6e5] bg-[#f0fbff] px-4 py-4 text-sm">
                 <p className="font-semibold text-[#383838] mb-1">✓ הקובץ הועלה! הבוט מתחיל לעבד...</p>
@@ -297,7 +331,6 @@ export default function LecturerDashboardPage() {
             )}
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Title */}
               <div>
                 <label htmlFor="lesson-title" className="mb-1.5 block text-sm font-medium text-[#383838]">
                   כותרת השיעור <span className="text-red-500">*</span>
@@ -316,7 +349,6 @@ export default function LecturerDashboardPage() {
                 <p className="mt-1 text-right text-xs text-gray-400">{title.length}/120</p>
               </div>
 
-              {/* File */}
               <div>
                 <label htmlFor="lesson-file" className="mb-1.5 block text-sm font-medium text-[#383838]">
                   קובץ <span className="text-red-500">*</span>{' '}
@@ -339,7 +371,6 @@ export default function LecturerDashboardPage() {
                 )}
               </div>
 
-              {/* Upload progress bar */}
               {uploadPhase === 'uploading' && (
                 <div>
                   <div className="flex justify-between text-xs text-gray-500 mb-1">
@@ -362,7 +393,6 @@ export default function LecturerDashboardPage() {
             </form>
           </section>
 
-          {/* ── Active jobs ── */}
           {activeJobs.length > 0 && (
             <section>
               <h2 className="section-title mb-4">שיעורים בעיבוד</h2>
@@ -374,7 +404,79 @@ export default function LecturerDashboardPage() {
             </section>
           )}
 
-          {/* ── Done jobs ── */}
+          {/* PENDING APPROVAL — Lecturer approves before publishing */}
+          {pendingApprovalJobs.length > 0 && (
+            <section>
+              <h2 className="section-title mb-4">שיעורים מוכנים לאישור שלך</h2>
+              <p className="text-sm text-[#666666] mb-4">הבוט סיים לעבד את השיעורים — בדוק אותם ואשר לפרסום</p>
+              <div className="space-y-3">
+                {pendingApprovalJobs.map((job) => (
+                  <div key={job.id} className="rounded-2xl bg-white shadow-md p-6 space-y-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h2 className="font-bold text-[#383838] text-lg">{job.lessonTitle}</h2>
+                        <p className="text-xs text-[#666666] mt-0.5">
+                          {new Date(job.createdAt).toLocaleDateString('he-IL', {
+                            year: 'numeric', month: 'long', day: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
+                        מוכן לאישור
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-3">
+                      {job.notebookUrl && (
+                        <a
+                          href={job.notebookUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 rounded-lg border border-[#00b6e5] px-3 py-1.5 text-sm text-[#00b6e5] hover:bg-[#f0fbff] transition"
+                        >
+                          <span>🔗</span> צפה בNotebook
+                        </a>
+                      )}
+                      {job.presentationUrl && (
+                        <a
+                          href={job.presentationUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 rounded-lg border border-[#00b6e5] px-3 py-1.5 text-sm text-[#00b6e5] hover:bg-[#f0fbff] transition"
+                        >
+                          <span>📊</span> צפה במצגת (מסוננת)
+                        </a>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3 pt-2 border-t border-gray-100">
+                      <button
+                        onClick={() => approveLessonForPublishing(job)}
+                        disabled={approvingJobId === job.id}
+                        className={clsx(
+                          'btn-primary flex-1 py-2.5',
+                          approvingJobId === job.id && 'opacity-60 cursor-not-allowed'
+                        )}
+                      >
+                        {approvingJobId === job.id ? 'מעבד...' : '✓ אשר ופרסם'}
+                      </button>
+                      <button
+                        onClick={() => rejectLesson(job)}
+                        disabled={approvingJobId === job.id}
+                        className={clsx(
+                          'flex-1 rounded-pill border border-red-300 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition',
+                          approvingJobId === job.id && 'opacity-60 cursor-not-allowed'
+                        )}
+                      >
+                        ✕ דחה
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {doneJobs.length > 0 && (
             <section>
               <h2 className="section-title mb-4">היסטוריית עיבוד</h2>
@@ -386,7 +488,6 @@ export default function LecturerDashboardPage() {
             </section>
           )}
 
-          {/* Empty state */}
           {jobs.length === 0 && uploadPhase === 'idle' && (
             <div className="rounded-2xl border-2 border-dashed border-gray-200 bg-white p-12 text-center">
               <p className="text-4xl mb-3">📂</p>
