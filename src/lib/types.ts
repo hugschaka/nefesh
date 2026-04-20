@@ -32,13 +32,14 @@ export interface Job {
   lessonTitle: string;
   progress: number; // 0-100
   progressLabel: string; // Hebrew status text
-  status: 'queued' | 'processing' | 'pending_approval' | 'published' | 'failed' | 'session_expired' | 'rejected' | 'error';
+  status: 'queued' | 'processing' | 'pending_approval' | 'edit_requested' | 'published' | 'failed' | 'session_expired' | 'rejected' | 'error';
   errorScreenshotUrl?: string;
   podcastUrl?: string;
   quizUrl?: string;
   presentationUrl?: string;
   rawPresentationUrl?: string;
   notebookUrl?: string;
+  editRequest?: string;
   createdAt: number;
   updatedAt: number;
 }

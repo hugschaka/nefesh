@@ -16,6 +16,7 @@ const STATUS_COLORS: Record<Job['status'], string> = {
   queued:           'bg-yellow-100 text-yellow-700',
   processing:       'bg-blue-100 text-blue-700',
   pending_approval: 'bg-purple-100 text-purple-700',
+  edit_requested:   'bg-orange-100 text-orange-700',
   published:        'bg-green-100 text-green-700',
   failed:           'bg-red-100 text-red-700',
   session_expired:  'bg-orange-100 text-orange-700',
@@ -26,7 +27,8 @@ const STATUS_COLORS: Record<Job['status'], string> = {
 const STATUS_LABELS: Record<Job['status'], string> = {
   queued:           'ממתין לעיבוד',
   processing:       'מעבד...',
-  pending_approval: 'ממתין לאישור מנהל',
+  pending_approval: 'ממתין לאישור מנחה',
+  edit_requested:   'ממתין לעריכה',
   published:        'פורסם ✓',
   failed:           'שגיאה',
   session_expired:  'פג תוקף הסשן',
@@ -35,7 +37,7 @@ const STATUS_LABELS: Record<Job['status'], string> = {
 };
 
 const ACTIVE_STATUSES: Job['status'][] = ['queued', 'processing'];
-const DONE_STATUSES: Job['status'][] = ['pending_approval', 'published'];
+const DONE_STATUSES: Job['status'][] = ['pending_approval', 'edit_requested', 'published'];
 const ERROR_STATUSES: Job['status'][] = ['failed', 'error', 'session_expired', 'rejected'];
 
 export default function JobStatusRow({ jobId, initialJob, onDone }: JobStatusRowProps) {
@@ -98,8 +100,18 @@ export default function JobStatusRow({ jobId, initialJob, onDone }: JobStatusRow
       {/* Pending approval */}
       {job.status === 'pending_approval' && (
         <p className="mt-2 text-xs text-purple-700 font-medium">
-          ✓ הבוט סיים לעבד. המנהל יאשר את השיעור ויפורסם לתלמידים.
+          ✓ הבוט סיים לעבד. אנא בדוק את הקבצים ואשר או בקש עריכה.
         </p>
+      )}
+
+      {/* Edit requested */}
+      {job.status === 'edit_requested' && (
+        <div className="mt-2 rounded-lg bg-orange-50 border border-orange-200 px-3 py-2">
+          <p className="text-xs text-orange-700 font-medium">בקשת עריכה נשלחה לבוט</p>
+          {job.editRequest && (
+            <p className="text-xs text-orange-600 mt-0.5">{job.editRequest}</p>
+          )}
+        </div>
       )}
 
       {/* Published */}

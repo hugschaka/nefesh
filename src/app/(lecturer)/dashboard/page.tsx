@@ -6,10 +6,7 @@ import {
   query,
   where,
   onSnapshot,
-  serverTimestamp,
   Timestamp,
-  doc,
-  updateDoc,
 } from 'firebase/firestore';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
@@ -59,6 +56,8 @@ export default function LecturerDashboardPage() {
   const [debugLog, setDebugLog] = useState<string[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [approvingJobId, setApprovingJobId] = useState<string | null>(null);
+  const [editRequestJobId, setEditRequestJobId] = useState<string | null>(null);
+  const [editRequestText, setEditRequestText] = useState('');
   const [showProcessingModal, setShowProcessingModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -248,39 +247,38 @@ export default function LecturerDashboardPage() {
   async function approveLessonForPublishing(job: Job) {
     setApprovingJobId(job.id);
     try {
-      await Promise.all([
-        updateDoc(doc(db, 'lessons', job.lessonId), {
-          isPublished: true,
-          updatedAt: serverTimestamp(),
-        }),
-        updateDoc(doc(db, 'jobs', job.id), {
-          status: 'published',
-          progressLabel: 'פורסם',
-          updatedAt: serverTimestamp(),
-        }),
-      ]);
+      const res = await fetch(`/api/jobs/${job.id}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approve' }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error);
       fireNotification('נפש יהודי', `✓ השיעור "${job.lessonTitle}" פורסם בהצלחה!`);
-      setJobs(jobs.filter(j => j.id !== job.id));
+      setJobs(prev => prev.filter(j => j.id !== job.id));
     } catch (err) {
       console.error('Approval error:', err);
-      alert('שגיאה בהעלאת אישור');
+      alert('שגיאה באישור השיעור');
     } finally {
       setApprovingJobId(null);
     }
   }
 
-  async function rejectLesson(job: Job) {
+  async function submitEditRequest(job: Job) {
+    if (!editRequestText.trim()) return;
     setApprovingJobId(job.id);
     try {
-      await updateDoc(doc(db, 'jobs', job.id), {
-        status: 'rejected',
-        progressLabel: 'נדחה על ידי המרצה',
-        updatedAt: serverTimestamp(),
+      const res = await fetch(`/api/jobs/${job.id}/review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'edit-request', details: editRequestText }),
       });
-      setJobs(jobs.filter(j => j.id !== job.id));
+      if (!res.ok) throw new Error((await res.json()).error);
+      setEditRequestJobId(null);
+      setEditRequestText('');
+      setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: 'edit_requested', editRequest: editRequestText } : j));
     } catch (err) {
-      console.error('Rejection error:', err);
-      alert('שגיאה בדחיית הלימוד');
+      console.error('Edit request error:', err);
+      alert('שגיאה בשליחת בקשת העריכה');
     } finally {
       setApprovingJobId(null);
     }
@@ -405,17 +403,18 @@ export default function LecturerDashboardPage() {
             </section>
           )}
 
-          {/* PENDING APPROVAL — Lecturer approves before publishing */}
+          {/* PENDING APPROVAL — Lecturer reviews and approves or requests edits */}
           {pendingApprovalJobs.length > 0 && (
             <section>
-              <h2 className="section-title mb-4">שיעורים מוכנים לאישור שלך</h2>
-              <p className="text-sm text-[#666666] mb-4">הבוט סיים לעבד את השיעורים — בדוק אותם ואשר לפרסום</p>
-              <div className="space-y-3">
+              <h2 className="section-title mb-4">שיעורים הממתינים לאישורך</h2>
+              <p className="text-sm text-[#666666] mb-4">הבוט סיים לעבד — עיין בתכנים ואשר לפרסום או בקש עריכות</p>
+              <div className="space-y-4">
                 {pendingApprovalJobs.map((job) => (
                   <div key={job.id} className="rounded-2xl bg-white shadow-md p-6 space-y-4">
+                    {/* Title + badge */}
                     <div className="flex items-start justify-between gap-4">
                       <div>
-                        <h2 className="font-bold text-[#383838] text-lg">{job.lessonTitle}</h2>
+                        <h3 className="font-bold text-[#383838] text-lg">{job.lessonTitle}</h3>
                         <p className="text-xs text-[#666666] mt-0.5">
                           {new Date(job.createdAt).toLocaleDateString('he-IL', {
                             year: 'numeric', month: 'long', day: 'numeric',
@@ -423,75 +422,92 @@ export default function LecturerDashboardPage() {
                         </p>
                       </div>
                       <span className="shrink-0 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700">
-                        מוכן לאישור
+                        ממתין לאישורך
                       </span>
                     </div>
 
-                    <div className="flex flex-wrap gap-3">
+                    {/* Preview links */}
+                    <div className="flex flex-wrap gap-2">
                       {job.notebookUrl && (
-                        <a
-                          href={job.notebookUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 rounded-lg border border-[#00b6e5] px-3 py-1.5 text-sm text-[#00b6e5] hover:bg-[#f0fbff] transition"
-                        >
+                        <a href={job.notebookUrl} target="_blank" rel="noopener noreferrer"
+                           className="flex items-center gap-1.5 rounded-lg border border-[#00b6e5] px-3 py-1.5 text-sm text-[#00b6e5] hover:bg-[#f0fbff] transition">
                           <span>🔗</span> פתח Notebook
                         </a>
                       )}
-                      {(job.rawPresentationUrl || job.presentationUrl) && job.rawPresentationUrl !== job.notebookUrl && (
-                        <a
-                          href={job.rawPresentationUrl || job.presentationUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 rounded-lg border border-[#00b6e5] px-3 py-1.5 text-sm text-[#00b6e5] hover:bg-[#f0fbff] transition"
-                        >
+                      {(job.rawPresentationUrl || job.presentationUrl) &&
+                       (job.rawPresentationUrl || job.presentationUrl) !== job.notebookUrl && (
+                        <a href={job.rawPresentationUrl || job.presentationUrl} target="_blank" rel="noopener noreferrer"
+                           className="flex items-center gap-1.5 rounded-lg border border-[#00b6e5] px-3 py-1.5 text-sm text-[#00b6e5] hover:bg-[#f0fbff] transition">
                           <span>📊</span> מצגת
                         </a>
                       )}
                       {job.podcastUrl && job.podcastUrl !== job.notebookUrl && (
-                        <a
-                          href={job.podcastUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 rounded-lg border border-purple-300 px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-50 transition"
-                        >
+                        <a href={job.podcastUrl} target="_blank" rel="noopener noreferrer"
+                           className="flex items-center gap-1.5 rounded-lg border border-purple-300 px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-50 transition">
                           <span>🎙️</span> פודקאסט
                         </a>
                       )}
                       {job.quizUrl && job.quizUrl !== job.notebookUrl && (
-                        <a
-                          href={job.quizUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 rounded-lg border border-green-300 px-3 py-1.5 text-sm text-green-600 hover:bg-green-50 transition"
-                        >
+                        <a href={job.quizUrl} target="_blank" rel="noopener noreferrer"
+                           className="flex items-center gap-1.5 rounded-lg border border-green-300 px-3 py-1.5 text-sm text-green-600 hover:bg-green-50 transition">
                           <span>📝</span> בוחן
                         </a>
                       )}
                     </div>
 
-                    <div className="flex gap-3 pt-2 border-t border-gray-100">
-                      <button
-                        onClick={() => approveLessonForPublishing(job)}
-                        disabled={approvingJobId === job.id}
-                        className={clsx(
-                          'btn-primary flex-1 py-2.5',
-                          approvingJobId === job.id && 'opacity-60 cursor-not-allowed'
-                        )}
-                      >
-                        {approvingJobId === job.id ? 'מעבד...' : '✓ אשר ופרסם'}
-                      </button>
-                      <button
-                        onClick={() => rejectLesson(job)}
-                        disabled={approvingJobId === job.id}
-                        className={clsx(
-                          'flex-1 rounded-pill border border-red-300 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 transition',
-                          approvingJobId === job.id && 'opacity-60 cursor-not-allowed'
-                        )}
-                      >
-                        ✕ דחה
-                      </button>
-                    </div>
+                    {/* Edit-request form (shown when lecturer clicks "בקשת עריכה") */}
+                    {editRequestJobId === job.id && (
+                      <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-3">
+                        <p className="text-sm font-semibold text-orange-800">פרט מה צריך לשנות:</p>
+                        <textarea
+                          value={editRequestText}
+                          onChange={(e) => setEditRequestText(e.target.value)}
+                          rows={3}
+                          placeholder="לדוגמה: יש שגיאות בשקופית 3, צריך להסיר את הסעיף על..."
+                          className="w-full rounded-lg border border-orange-200 bg-white px-3 py-2 text-sm text-[#383838] outline-none focus:border-orange-400 resize-none"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => submitEditRequest(job)}
+                            disabled={!editRequestText.trim() || approvingJobId === job.id}
+                            className={clsx(
+                              'flex-1 rounded-pill bg-orange-500 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition',
+                              (!editRequestText.trim() || approvingJobId === job.id) && 'opacity-50 cursor-not-allowed'
+                            )}
+                          >
+                            {approvingJobId === job.id ? 'שולח...' : 'שלח בקשת עריכה'}
+                          </button>
+                          <button
+                            onClick={() => { setEditRequestJobId(null); setEditRequestText(''); }}
+                            className="rounded-pill border border-gray-300 px-4 py-2 text-sm text-[#666666] hover:bg-gray-50 transition"
+                          >
+                            ביטול
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action buttons */}
+                    {editRequestJobId !== job.id && (
+                      <div className="flex gap-3 pt-2 border-t border-gray-100">
+                        <button
+                          onClick={() => approveLessonForPublishing(job)}
+                          disabled={approvingJobId === job.id}
+                          className={clsx(
+                            'btn-primary flex-1 py-2.5',
+                            approvingJobId === job.id && 'opacity-60 cursor-not-allowed'
+                          )}
+                        >
+                          {approvingJobId === job.id ? 'מעבד...' : '✓ אשר ופרסם'}
+                        </button>
+                        <button
+                          onClick={() => { setEditRequestJobId(job.id); setEditRequestText(''); }}
+                          className="flex-1 rounded-pill border border-orange-300 py-2.5 text-sm font-semibold text-orange-600 hover:bg-orange-50 transition"
+                        >
+                          ✏️ בקשת עריכה
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

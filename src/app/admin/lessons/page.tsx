@@ -1,12 +1,11 @@
 import { cookies } from 'next/headers';
-import { adminDb } from '@/lib/firebase-admin';
+import { adminDb, adminAuth } from '@/lib/firebase-admin';
 import Navbar from '@/components/Navbar';
 import AdminLessonsClient from './AdminLessonsClient';
 
 async function getPendingJobs() {
   const cookieStore = cookies();
   const sessionCookie = cookieStore.get('__session')?.value;
-  
   if (!sessionCookie) return null;
   const [, role] = sessionCookie.split(':');
   if (role !== 'admin') return null;
@@ -18,20 +17,37 @@ async function getPendingJobs() {
       .orderBy('createdAt', 'asc')
       .get();
 
-    return snap.docs.map(doc => {
-      const data = doc.data();
-      return {
-        jobId: doc.id,
-        lessonId: data.lessonId ?? '',
-        lessonTitle: data.lessonTitle ?? '',
-        podcastUrl: data.podcastUrl,
-        quizUrl: data.quizUrl,
-        presentationUrl: data.presentationUrl,
-        rawPresentationUrl: data.rawPresentationUrl,
-        notebookUrl: data.notebookUrl,
-        createdAt: data.createdAt?.toMillis?.() ?? data.createdAt ?? Date.now(),
-      };
-    });
+    const jobs = await Promise.all(
+      snap.docs.map(async (docSnap) => {
+        const data = docSnap.data();
+        // Fetch lecturer info
+        let lecturerEmail = '';
+        let lecturerName = '';
+        try {
+          const user = await adminAuth.getUser(data.lecturerId);
+          lecturerEmail = user.email ?? '';
+          lecturerName = user.displayName ?? '';
+        } catch { /* ignore */ }
+
+        return {
+          jobId: docSnap.id,
+          lessonId: data.lessonId ?? '',
+          lessonTitle: data.lessonTitle ?? '',
+          podcastUrl: data.podcastUrl,
+          quizUrl: data.quizUrl,
+          presentationUrl: data.presentationUrl,
+          rawPresentationUrl: data.rawPresentationUrl,
+          notebookUrl: data.notebookUrl,
+          editRequest: data.editRequest,
+          createdAt: data.createdAt?.toMillis?.() ?? data.createdAt ?? Date.now(),
+          lecturerId: data.lecturerId ?? '',
+          lecturerEmail,
+          lecturerName,
+        };
+      })
+    );
+
+    return jobs;
   } catch (err) {
     console.error('Error fetching jobs:', err);
     return [];
