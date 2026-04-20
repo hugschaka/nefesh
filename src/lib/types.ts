@@ -37,6 +37,7 @@ export interface Job {
   podcastUrl?: string;
   quizUrl?: string;
   presentationUrl?: string;
+  rawPresentationUrl?: string;
   notebookUrl?: string;
   createdAt: number;
   updatedAt: number;

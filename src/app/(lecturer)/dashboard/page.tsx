@@ -6,9 +6,7 @@ import {
   query,
   where,
   onSnapshot,
-  addDoc,
   serverTimestamp,
-  orderBy,
   Timestamp,
   doc,
   updateDoc,
@@ -74,7 +72,6 @@ export default function LecturerDashboardPage() {
     const q = query(
       collection(db, 'jobs'),
       where('lecturerId', '==', user.uid),
-      orderBy('createdAt', 'desc')
     );
 
     const unsub = onSnapshot(q, (snap) => {
@@ -102,8 +99,10 @@ export default function LecturerDashboardPage() {
               ? raw.updatedAt.toMillis()
               : raw.updatedAt ?? Date.now(),
         } as Job;
-      });
+      }).sort((a, b) => b.createdAt - a.createdAt);
       setJobs(data);
+    }, (err) => {
+      console.error('[Jobs listener] Firestore error:', err);
     });
 
     return () => unsub();
@@ -434,17 +433,37 @@ export default function LecturerDashboardPage() {
                           rel="noopener noreferrer"
                           className="flex items-center gap-1.5 rounded-lg border border-[#00b6e5] px-3 py-1.5 text-sm text-[#00b6e5] hover:bg-[#f0fbff] transition"
                         >
-                          <span>🔗</span> צפה בNotebook
+                          <span>🔗</span> פתח Notebook
                         </a>
                       )}
-                      {job.presentationUrl && (
+                      {(job.rawPresentationUrl || job.presentationUrl) && job.rawPresentationUrl !== job.notebookUrl && (
                         <a
-                          href={job.presentationUrl}
+                          href={job.rawPresentationUrl || job.presentationUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1.5 rounded-lg border border-[#00b6e5] px-3 py-1.5 text-sm text-[#00b6e5] hover:bg-[#f0fbff] transition"
                         >
-                          <span>📊</span> צפה במצגת (מסוננת)
+                          <span>📊</span> מצגת
+                        </a>
+                      )}
+                      {job.podcastUrl && job.podcastUrl !== job.notebookUrl && (
+                        <a
+                          href={job.podcastUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 rounded-lg border border-purple-300 px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-50 transition"
+                        >
+                          <span>🎙️</span> פודקאסט
+                        </a>
+                      )}
+                      {job.quizUrl && job.quizUrl !== job.notebookUrl && (
+                        <a
+                          href={job.quizUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 rounded-lg border border-green-300 px-3 py-1.5 text-sm text-green-600 hover:bg-green-50 transition"
+                        >
+                          <span>📝</span> בוחן
                         </a>
                       )}
                     </div>
