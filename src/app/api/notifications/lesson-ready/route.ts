@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://web-app-rho-gray.vercel.app';
 
     await resend.emails.send({
-      from: 'נפש יהודי <noreply@zilberberg.co.il>',
+      from: 'נפש יהודי <onboarding@resend.dev>',
       to: email,
       subject: `הקבצים לשיעור "${lesson.title}" מוכנים`,
       html: `

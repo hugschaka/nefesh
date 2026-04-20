@@ -60,14 +60,14 @@ export default function RegisterPopup({ onClose, defaultRole = 'student' }: Prop
             /* Thank you screen */
             <div className="py-6 text-center space-y-4">
               <div className="text-5xl">✅</div>
-              <h3 className="text-xl font-bold text-[#383838]">קיבלנו את ההרשמה שלך!</h3>
+              <h3 className="text-xl font-bold text-[#383838]">ההרשמה נשלחה לבדיקה!</h3>
               <p className="text-[#666666] leading-relaxed">
-                ברגעים הקרובים ישלח אליך מייל — בדוק את תיבת המייל שלך.
+                הבקשה שלך התקבלה. כשהמנהל יאשר אותה, תקבל מייל עם קישור לכניסה לאתר.
               </p>
-              <p className="text-sm font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 text-right">
-                <span className="block mb-1">⚠️ חשוב!</span>
-                אם המייל הגיע לספאם — אנא סמן <strong>"זה לא ספאם"</strong> כדי שתוכל לקבל את פרטי ההרשמה.
-              </p>
+              <div className="text-sm font-medium text-orange-700 bg-orange-50 border border-orange-200 rounded-xl px-4 py-3 text-right space-y-1">
+                <p className="font-bold">⚠️ חשוב — בדוק בספאם!</p>
+                <p>אם המייל שלנו הגיע לתיקיית ספאם, אנא לחץ על <strong>"זה לא ספאם"</strong> כדי לוודא שמייל האישור יגיע אליך.</p>
+              </div>
               <button onClick={onClose} className="btn-primary px-8 py-2.5 text-sm mt-2">
                 סגירה
               </button>

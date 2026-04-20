@@ -36,7 +36,40 @@ export async function POST(req: NextRequest) {
     createdAt: Date.now(),
   });
 
-  // Send immediate confirmation email
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://web-app-rho-gray.vercel.app';
+  const adminEmail = 'danielrozner11@gmail.com';
+
+  // Send admin notification (works on Resend sandbox since it's the account owner's email)
+  try {
+    await resend.emails.send({
+      from: 'נפש יהודי <onboarding@resend.dev>',
+      to: adminEmail,
+      subject: 'משתמש חדש מבקש להירשם לנפש יהודי',
+      html: `
+        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #383838;">
+          <h2 style="color: #00b6e5;">בקשת הרשמה חדשה</h2>
+          <table style="width:100%;border-collapse:collapse;margin-top:16px;">
+            <tr><td style="padding:8px;font-weight:bold;width:120px;">שם:</td><td style="padding:8px;">${name}</td></tr>
+            <tr style="background:#f9f9f9;"><td style="padding:8px;font-weight:bold;">אימייל:</td><td style="padding:8px;" dir="ltr">${email}</td></tr>
+            <tr><td style="padding:8px;font-weight:bold;">טלפון:</td><td style="padding:8px;" dir="ltr">${phone}</td></tr>
+            <tr style="background:#f9f9f9;"><td style="padding:8px;font-weight:bold;">מוסד:</td><td style="padding:8px;">${college}</td></tr>
+            <tr><td style="padding:8px;font-weight:bold;">תפקיד:</td><td style="padding:8px;">${role === 'lecturer' ? 'מרצה' : 'סטודנט'}</td></tr>
+          </table>
+          <a href="${siteUrl}/admin/users"
+             style="display:inline-block;background:#00b6e5;color:#fff;padding:12px 28px;border-radius:9999px;text-decoration:none;font-weight:bold;margin-top:20px;">
+            לאישור בלוח הניהול
+          </a>
+          <p style="color:#666;margin-top:28px;font-size:12px;border-top:1px solid #eee;padding-top:12px;">
+            נפש יהודי - מרכז ההרצאות והתכנים
+          </p>
+        </div>
+      `,
+    });
+  } catch (e) {
+    console.error('[registrations/submit] admin email failed:', e);
+  }
+
+  // Send confirmation to registrant (may fail on Resend sandbox for non-owner emails)
   try {
     await resend.emails.send({
       from: 'נפש יהודי <onboarding@resend.dev>',
@@ -44,12 +77,16 @@ export async function POST(req: NextRequest) {
       subject: 'קיבלנו את בקשת ההרשמה שלך — נפש יהודי',
       html: `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #383838;">
-          <h2 style="color: #00b6e5;">תודה על ההרשמה!</h2>
+          <h2 style="color: #00b6e5;">ההרשמה שלך התקבלה!</h2>
           <p>שלום ${name},</p>
-          <p>המנהל בודק את פרטי ההרשמה שלך ויאשר בהקדם. תקבל מייל נוסף עם פרטי הכניסה לאחר האישור.</p>
+          <p>הבקשה שלך נשלחה לבדיקה. כשהמנהל יאשר אותה תקבל מייל עם קישור לכניסה לאתר.</p>
+          <a href="${siteUrl}/login"
+             style="display:inline-block;background:#00b6e5;color:#fff;padding:12px 28px;border-radius:9999px;text-decoration:none;font-weight:bold;margin-top:16px;">
+            דף הכניסה
+          </a>
           <div style="background:#fff8e1;border:1px solid #ffe082;border-radius:8px;padding:16px;margin-top:20px;">
-            <p style="margin:0;font-weight:bold;color:#e65100;">⚠️ חשוב — אם מייל זה הגיע לספאם:</p>
-            <p style="margin:8px 0 0;">אנא לחץ על <strong>"זה לא ספאם"</strong> כדי שמייל האישור יגיע ישירות לתיבת הדואר שלך.</p>
+            <p style="margin:0;font-weight:bold;color:#e65100;">⚠️ חשוב — בדוק בספאם!</p>
+            <p style="margin:8px 0 0;">אם מייל האישור יגיע לתיקיית ספאם, אנא לחץ על <strong>"זה לא ספאם"</strong> כדי שתמשיך לקבל עדכונים.</p>
           </div>
           <p style="color:#666;margin-top:28px;font-size:12px;border-top:1px solid #eee;padding-top:12px;">
             נפש יהודי - מרכז ההרצאות והתכנים
@@ -58,7 +95,7 @@ export async function POST(req: NextRequest) {
       `,
     });
   } catch (e) {
-    console.error('[registrations/submit] email failed:', e);
+    console.error('[registrations/submit] user email failed:', e);
   }
 
   return NextResponse.json({ ok: true });

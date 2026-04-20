@@ -59,6 +59,7 @@ export default function LecturerDashboardPage() {
   const [debugLog, setDebugLog] = useState<string[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [approvingJobId, setApprovingJobId] = useState<string | null>(null);
+  const [showProcessingModal, setShowProcessingModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -202,6 +203,7 @@ export default function LecturerDashboardPage() {
 
       setUploadPhase('processing');
       setUploadProgress(0);
+      setShowProcessingModal(true);
 
       log('יוצר שיעור ו-job דרך השרת...');
       const createResp = await fetch('/api/jobs', {
@@ -515,6 +517,28 @@ export default function LecturerDashboardPage() {
           )}
         </div>
       </main>
+
+      {/* Processing modal — shown after upload, close button closes the window */}
+      {showProcessingModal && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl p-8 text-center space-y-5">
+            <div className="text-5xl">📤</div>
+            <h3 className="text-xl font-bold text-[#383838]">הקבצים נשלחו לעיבוד!</h3>
+            <p className="text-[#666666] leading-relaxed">
+              הבוט מתחיל לעבד את הקבצים. תקבל מייל כאשר הם יהיו מוכנים לצפייה.
+            </p>
+            <button
+              onClick={() => {
+                setShowProcessingModal(false);
+                window.close();
+              }}
+              className="btn-primary w-full py-3 text-base"
+            >
+              סגירה
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
