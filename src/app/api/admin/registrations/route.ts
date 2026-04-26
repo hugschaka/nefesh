@@ -93,36 +93,63 @@ export async function POST(req: NextRequest) {
   // Set role claim
   await adminAuth.setCustomUserClaims(uid, { role: reg.role });
 
-  // Send approval email — use resend test domain if custom domain not verified
   const siteUrl = 'https://web-app-rho-gray.vercel.app';
+  const approvalHtml = `
+    <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #383838;">
+      <h2 style="color: #00b6e5;">ברוכים הבאים לנפש יהודי!</h2>
+      <p>שלום ${reg.name},</p>
+      <p>אישרנו את ההרשמה שלך. אתה יכול להיכנס דרך הלינק הזה:</p>
+      <a
+        href="${siteUrl}/"
+        style="display:inline-block;background:#00b6e5;color:#fff;padding:12px 28px;border-radius:9999px;text-decoration:none;font-weight:bold;margin-top:16px;"
+      >
+        כניסה לאתר
+      </a>
+      <p style="margin-top:20px;">כתובת המייל שלך: <strong>${reg.email}</strong></p>
+      <p>הסיסמה שבחרת בעת ההרשמה.</p>
+      <p style="margin-top:24px;">תהנה.</p>
+      <p style="color:#666;margin-top:28px;font-size:12px;border-top:1px solid #eee;padding-top:12px;">
+        נפש יהודי - מרכז ההרצאות והתכנים
+      </p>
+    </div>
+  `;
+
+  // Try sending to the new user (may fail in Resend sandbox for non-owner emails)
   try {
     await resend.emails.send({
       from: 'נפש יהודי <onboarding@resend.dev>',
       to: reg.email,
-      subject: 'אתר ההרצאות של נפש יהודי',
+      subject: 'אתר ההרצאות של נפש יהודי — ההרשמה אושרה',
+      html: approvalHtml,
+    });
+  } catch (emailErr) {
+    console.error('[registrations approve] email to user failed:', emailErr);
+  }
+
+  // Always notify admin — guaranteed to arrive (Resend sandbox allows owner email)
+  try {
+    await resend.emails.send({
+      from: 'נפש יהודי <onboarding@resend.dev>',
+      to: 'danielrozner11@gmail.com',
+      subject: `✅ אישרת את ${reg.name} — שלח לו מייל ידנית`,
       html: `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #383838;">
-          <h2 style="color: #00b6e5;">ברוכים הבאים לנפש יהודי!</h2>
-          <p>שלום ${reg.name},</p>
-          <p>אישרנו את ההרשמה שלך. אתה יכול להיכנס דרך הלינק הזה:</p>
-          <a
-            href="${siteUrl}/"
-            style="display:inline-block;background:#00b6e5;color:#fff;padding:12px 28px;border-radius:9999px;text-decoration:none;font-weight:bold;margin-top:16px;"
-          >
-            כניסה לאתר
-          </a>
-          <p style="margin-top:20px;">כתובת המייל שלך: <strong>${reg.email}</strong></p>
-          <p>הסיסמה שבחרת בעת ההרשמה.</p>
-          <p style="margin-top:24px;">תהנה.</p>
-          <p style="color:#666;margin-top:28px;font-size:12px;border-top:1px solid #eee;padding-top:12px;">
-            נפש יהודי - מרכז ההרצאות והתכנים
-          </p>
+          <h2 style="color: #00b6e5;">אישרת משתמש חדש</h2>
+          <table style="border-collapse:collapse;width:100%;margin:16px 0;">
+            <tr><td style="padding:8px;border:1px solid #eee;background:#f9f9f9;font-weight:bold;">שם</td><td style="padding:8px;border:1px solid #eee;">${reg.name}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #eee;background:#f9f9f9;font-weight:bold;">מייל</td><td style="padding:8px;border:1px solid #eee;">${reg.email}</td></tr>
+            <tr><td style="padding:8px;border:1px solid #eee;background:#f9f9f9;font-weight:bold;">תפקיד</td><td style="padding:8px;border:1px solid #eee;">${reg.role}</td></tr>
+          </table>
+          <p style="color:#c00;font-weight:bold;">⚠️ המייל האוטומטי למנחה עלול לא להגיע (Resend sandbox).</p>
+          <p>העתק את הטקסט הבא ושלח לו ידנית:</p>
+          <div style="background:#f3f3f3;border:1px solid #ddd;border-radius:8px;padding:16px;margin-top:12px;">
+            ${approvalHtml}
+          </div>
         </div>
       `,
     });
-  } catch (emailErr) {
-    console.error('[registrations approve] email failed:', emailErr);
-    // Don't fail the whole approval if email fails — user is already created
+  } catch (adminEmailErr) {
+    console.error('[registrations approve] admin notification failed:', adminEmailErr);
   }
 
   // Delete the pending registration (removes stored password)
