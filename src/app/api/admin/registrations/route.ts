@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
-import { Resend } from 'resend';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendMail } from '@/lib/mailer';
 
 async function requireAdmin(req: NextRequest): Promise<boolean> {
   const cookie = req.cookies.get('__session')?.value;
@@ -114,42 +112,15 @@ export async function POST(req: NextRequest) {
     </div>
   `;
 
-  // Try sending to the new user (may fail in Resend sandbox for non-owner emails)
+  // Send approval email to the new user
   try {
-    await resend.emails.send({
-      from: 'נפש יהודי <onboarding@resend.dev>',
+    await sendMail({
       to: reg.email,
       subject: 'אתר ההרצאות של נפש יהודי — ההרשמה אושרה',
       html: approvalHtml,
     });
   } catch (emailErr) {
     console.error('[registrations approve] email to user failed:', emailErr);
-  }
-
-  // Always notify admin — guaranteed to arrive (Resend sandbox allows owner email)
-  try {
-    await resend.emails.send({
-      from: 'נפש יהודי <onboarding@resend.dev>',
-      to: 'danielrozner11@gmail.com',
-      subject: `✅ אישרת את ${reg.name} — שלח לו מייל ידנית`,
-      html: `
-        <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #383838;">
-          <h2 style="color: #00b6e5;">אישרת משתמש חדש</h2>
-          <table style="border-collapse:collapse;width:100%;margin:16px 0;">
-            <tr><td style="padding:8px;border:1px solid #eee;background:#f9f9f9;font-weight:bold;">שם</td><td style="padding:8px;border:1px solid #eee;">${reg.name}</td></tr>
-            <tr><td style="padding:8px;border:1px solid #eee;background:#f9f9f9;font-weight:bold;">מייל</td><td style="padding:8px;border:1px solid #eee;">${reg.email}</td></tr>
-            <tr><td style="padding:8px;border:1px solid #eee;background:#f9f9f9;font-weight:bold;">תפקיד</td><td style="padding:8px;border:1px solid #eee;">${reg.role}</td></tr>
-          </table>
-          <p style="color:#c00;font-weight:bold;">⚠️ המייל האוטומטי למנחה עלול לא להגיע (Resend sandbox).</p>
-          <p>העתק את הטקסט הבא ושלח לו ידנית:</p>
-          <div style="background:#f3f3f3;border:1px solid #ddd;border-radius:8px;padding:16px;margin-top:12px;">
-            ${approvalHtml}
-          </div>
-        </div>
-      `,
-    });
-  } catch (adminEmailErr) {
-    console.error('[registrations approve] admin notification failed:', adminEmailErr);
   }
 
   // Delete the pending registration (removes stored password)

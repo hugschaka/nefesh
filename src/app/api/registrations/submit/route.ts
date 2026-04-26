@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { Resend } from 'resend';
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { sendMail } from '@/lib/mailer';
 
 export async function POST(req: NextRequest) {
   const { name, email, phone, college, password, role } = await req.json();
@@ -39,10 +37,9 @@ export async function POST(req: NextRequest) {
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://web-app-rho-gray.vercel.app';
   const adminEmail = 'danielrozner11@gmail.com';
 
-  // Send admin notification (works on Resend sandbox since it's the account owner's email)
+  // Send admin notification
   try {
-    await resend.emails.send({
-      from: 'נפש יהודי <onboarding@resend.dev>',
+    await sendMail({
       to: adminEmail,
       subject: 'משתמש חדש מבקש להירשם לנפש יהודי',
       html: `
@@ -69,10 +66,9 @@ export async function POST(req: NextRequest) {
     console.error('[registrations/submit] admin email failed:', e);
   }
 
-  // Send confirmation to registrant (may fail on Resend sandbox for non-owner emails)
+  // Send confirmation to registrant
   try {
-    await resend.emails.send({
-      from: 'נפש יהודי <onboarding@resend.dev>',
+    await sendMail({
       to: email,
       subject: 'קיבלנו את בקשת ההרשמה שלך — נפש יהודי',
       html: `
