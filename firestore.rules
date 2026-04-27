@@ -8,13 +8,15 @@ service cloud.firestore {
       allow read, write: if request.auth.uid == uid || role() == 'admin';
     }
     match /lessons/{id} {
-      allow read: if resource.data.isPublished == true || role() in ['lecturer', 'admin'];
-      allow create: if role() in ['lecturer', 'admin'];
-      allow update, delete: if role() == 'admin' || (role() == 'lecturer' && resource.data.lecturerId == request.auth.uid);
+      allow read: if resource.data.isPublished == true
+                  || (request.auth != null && role() in ['lecturer', 'admin']);
+      allow create: if request.auth != null && role() in ['lecturer', 'admin'];
+      allow update, delete: if request.auth != null
+                            && (role() == 'admin' || (role() == 'lecturer' && resource.data.lecturerId == request.auth.uid));
     }
     match /jobs/{id} {
-      allow read: if role() in ['lecturer', 'admin'];
-      allow create: if role() in ['lecturer', 'admin'];
+      allow read: if request.auth != null && (request.auth.uid == resource.data.lecturerId || role() == 'admin');
+      allow create: if request.auth != null && (role() in ['lecturer', 'admin']);
       allow update, delete: if role() == 'admin';
     }
     match /ads/{id} {

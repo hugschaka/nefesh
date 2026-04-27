@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, where, orderBy, getDocs, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Navbar from '@/components/Navbar';
 import LessonCard from '@/components/LessonCard';
@@ -37,8 +37,7 @@ export default function StudentLessonsPage() {
       try {
         const q = query(
           collection(db, 'lessons'),
-          where('isPublished', '==', true),
-          orderBy('createdAt', 'desc')
+          where('isPublished', '==', true)
         );
         const snap = await getDocs(q);
         setAllLessons(
@@ -64,6 +63,7 @@ export default function StudentLessonsPage() {
               updatedAt: raw.updatedAt instanceof Timestamp ? raw.updatedAt.toMillis() : raw.updatedAt ?? 0,
             } as Lesson;
           })
+          ).sort((a, b) => b.createdAt - a.createdAt)
         );
       } catch (err) {
         console.error('[StudentLessons]', err);
