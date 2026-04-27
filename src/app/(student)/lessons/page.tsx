@@ -40,31 +40,29 @@ export default function StudentLessonsPage() {
           where('isPublished', '==', true)
         );
         const snap = await getDocs(q);
-        setAllLessons(
-          snap.docs.map((d) => {
-            const raw = d.data();
-            return {
-              id: d.id,
-              title: raw.title ?? '',
-              description: raw.description ?? '',
-              fileUrl: raw.fileUrl ?? '',
-              fileType: raw.fileType ?? 'pdf',
-              thumbnailUrl: raw.thumbnailUrl,
-              lecturerId: raw.lecturerId ?? '',
-              lecturerName: raw.lecturerName,
-              isPublished: true,
-              status: raw.status ?? 'done',
-              notebookUrl: raw.notebookUrl,
-              podcastUrl: raw.podcastUrl,
-              quizUrl: raw.quizUrl,
-              presentationUrl: raw.presentationUrl,
-              rawPresentationUrl: raw.rawPresentationUrl,
-              createdAt: raw.createdAt instanceof Timestamp ? raw.createdAt.toMillis() : raw.createdAt ?? 0,
-              updatedAt: raw.updatedAt instanceof Timestamp ? raw.updatedAt.toMillis() : raw.updatedAt ?? 0,
-            } as Lesson;
-          })
-          ).sort((a, b) => b.createdAt - a.createdAt)
-        );
+        const lessons = snap.docs.map((d) => {
+          const raw = d.data();
+          return {
+            id: d.id,
+            title: raw.title ?? '',
+            description: raw.description ?? '',
+            fileUrl: raw.fileUrl ?? '',
+            fileType: raw.fileType ?? 'pdf',
+            thumbnailUrl: raw.thumbnailUrl,
+            lecturerId: raw.lecturerId ?? '',
+            lecturerName: raw.lecturerName,
+            isPublished: true,
+            status: raw.status ?? 'done',
+            notebookUrl: raw.notebookUrl,
+            podcastUrl: raw.podcastUrl,
+            quizUrl: raw.quizUrl,
+            presentationUrl: raw.presentationUrl,
+            rawPresentationUrl: raw.rawPresentationUrl,
+            createdAt: raw.createdAt instanceof Timestamp ? raw.createdAt.toMillis() : raw.createdAt ?? 0,
+            updatedAt: raw.updatedAt instanceof Timestamp ? raw.updatedAt.toMillis() : raw.updatedAt ?? 0,
+          } as Lesson;
+        });
+        setAllLessons(lessons.sort((a, b) => b.createdAt - a.createdAt));
       } catch (err) {
         console.error('[StudentLessons]', err);
       } finally {
