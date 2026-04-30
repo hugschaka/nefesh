@@ -43,8 +43,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    // If user doesn't exist, still return 200 (don't reveal email existence)
-    if (msg.includes('USER_NOT_FOUND') || msg.includes('user-not-found')) {
+    const code = (err as { code?: string; errorInfo?: { code: string } }).code
+      ?? (err as { errorInfo?: { code: string } }).errorInfo?.code
+      ?? '';
+    // Never reveal whether an email address is registered
+    const isUserMissing =
+      code.includes('user-not-found') ||
+      msg.includes('USER_NOT_FOUND') ||
+      msg.includes('user-not-found') ||
+      msg.includes('no user record') ||
+      msg.includes('INVALID_EMAIL') ||
+      msg.includes('EMAIL_NOT_FOUND');
+    if (isUserMissing) {
       return NextResponse.json({ ok: true });
     }
     console.error('[reset-password]', msg);
