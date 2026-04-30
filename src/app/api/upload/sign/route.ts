@@ -55,8 +55,9 @@ export async function POST(req: NextRequest) {
 
   const [writeUrl] = await file.getSignedUrl({
     action: 'write',
-    version: 'v2',
+    version: 'v4',
     expires: Date.now() + 15 * 60 * 1000, // 15 minutes
+    contentType,
   });
 
   const [readUrl] = await file.getSignedUrl({
