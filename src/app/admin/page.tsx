@@ -18,17 +18,33 @@ async function getAdminData() {
     return null;
   }
 
-  // Fetch summary counts
-  const [lessonsSnap, usersSnap, adsSnap] = await Promise.all([
+  const [lessonsSnap, usersSnap, adsSnap, errorsSnap] = await Promise.all([
     adminDb.collection('lessons').count().get(),
     adminDb.collection('users').count().get(),
     adminDb.collection('ads').count().get(),
+    adminDb.collection('error_logs').get(),
   ]);
+
+  const errors = errorsSnap.docs
+    .map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        context: (data.context as string) ?? '',
+        message: (data.message as string) ?? '',
+        diagnosis: (data.diagnosis as string | null) ?? null,
+        status: (data.status as string) ?? 'pending',
+        timestamp: data.timestamp?.toMillis?.() ?? 0,
+      };
+    })
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, 10);
 
   return {
     totalLessons: lessonsSnap.data().count,
     totalUsers: usersSnap.data().count,
     totalAds: adsSnap.data().count,
+    recentErrors: errors,
   };
 }
 
@@ -36,7 +52,7 @@ export default async function AdminDashboardPage() {
   const data = await getAdminData();
   if (!data) return <AdminLoginClient />;
 
-  const { totalLessons, totalUsers, totalAds } = data;
+  const { totalLessons, totalUsers, totalAds, recentErrors } = data;
 
   const summaryCards = [
     { label: 'סה"כ שיעורים', value: totalLessons, href: '/lessons', color: 'text-[#00b6e5]' },
@@ -90,6 +106,42 @@ export default async function AdminDashboardPage() {
               ))}
             </div>
           </section>
+
+          {/* Recent errors */}
+          {recentErrors.length > 0 && (
+            <section>
+              <h2 className="section-title mb-4">שגיאות אחרונות</h2>
+              <div className="space-y-3">
+                {recentErrors.map((err) => (
+                  <div key={err.id} className="card p-4 border-l-4 border-red-400">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+                            {err.context}
+                          </span>
+                          <span className="text-xs text-[#666666]">
+                            {err.timestamp
+                              ? new Date(err.timestamp).toLocaleString('he-IL')
+                              : '—'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-[#383838] truncate">{err.message}</p>
+                        {err.diagnosis && (
+                          <p className="mt-2 text-xs text-[#666666] bg-[#f3f3f3] rounded-lg p-2 leading-relaxed">
+                            🤖 {err.diagnosis}
+                          </p>
+                        )}
+                        {!err.diagnosis && err.status === 'pending' && (
+                          <p className="mt-1 text-xs text-[#666666]">🔄 מנתח...</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Preview mode */}
           <section>

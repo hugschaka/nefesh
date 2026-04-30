@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
+import { sendMail } from '@/lib/mailer';
 
 const BOT_BASE_URL = process.env.BOT_BASE_URL ?? 'http://localhost:3001';
 
@@ -87,7 +88,35 @@ export async function POST(req: NextRequest) {
     updatedAt: now,
   });
 
-  // 6. Forward job to the automation bot (best-effort — don't fail the request)
+  // 6. Send upload confirmation email to lecturer (best-effort)
+  try {
+    const lecturerUser = await adminAuth.getUser(lecturerId);
+    const lecturerEmail = lecturerUser.email;
+    if (lecturerEmail) {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://web-app-rho-gray.vercel.app';
+      sendMail({
+        to: lecturerEmail,
+        subject: `השיעור "${title.trim()}" התקבל ומעובד`,
+        html: `
+          <div dir="rtl" style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;color:#383838;">
+            <h2 style="color:#00b6e5;">השיעור שלך התקבל!</h2>
+            <p>שלום,</p>
+            <p>השיעור <strong>"${title.trim()}"</strong> הועלה בהצלחה ועובר עיבוד על ידי הבוט.</p>
+            <p>תקבל מייל נוסף כשהקבצים יהיו מוכנים לאישורך.</p>
+            <a href="${siteUrl}/dashboard"
+               style="display:inline-block;background:#00b6e5;color:#fff;padding:12px 28px;border-radius:9999px;text-decoration:none;font-weight:bold;margin-top:16px;">
+              לדשבורד שלי
+            </a>
+            <p style="color:#666;margin-top:28px;font-size:12px;border-top:1px solid #eee;padding-top:12px;">
+              נפש יהודי - מרכז ההרצאות והתכנים
+            </p>
+          </div>
+        `,
+      }).catch(() => {}); // fire-and-forget
+    }
+  } catch { /* never blocks job creation */ }
+
+  // 7. Forward job to the automation bot (best-effort — don't fail the request)
   try {
     const botRes = await fetch(`${BOT_BASE_URL}/api/jobs`, {
       method: 'POST',

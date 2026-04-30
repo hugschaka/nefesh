@@ -19,12 +19,20 @@ service cloud.firestore {
       allow create: if request.auth != null && (role() in ['lecturer', 'admin']);
       allow update, delete: if role() == 'admin';
     }
+    match /lesson_views/{id} {
+      allow create: if request.auth != null;
+      allow read: if role() == 'admin';
+    }
     match /ads/{id} {
       allow read: if true;
       allow write: if role() == 'admin';
     }
     match /alerts/{id} {
       allow read, write: if role() == 'admin';
+    }
+    match /error_logs/{id} {
+      allow create: if true;
+      allow read, update, delete: if role() == 'admin';
     }
     // Announcements — public read, writes only via Admin SDK (API routes)
     match /site_config/{document} {

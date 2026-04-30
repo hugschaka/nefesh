@@ -26,6 +26,8 @@ export default function Navbar({ role }: NavbarProps) {
     router.refresh();
   }
 
+  const [codeErrorMsg, setCodeErrorMsg] = useState('קוד שגוי. נסו שנית.');
+
   async function handleVerifyCode() {
     setVerifying(true);
     setCodeError(false);
@@ -41,9 +43,12 @@ export default function Navbar({ role }: NavbarProps) {
         setCodeInput('');
         setEditorOpen(true);
       } else {
+        const body = await res.json().catch(() => ({}));
+        setCodeErrorMsg(body.error ?? 'קוד שגוי. נסו שנית.');
         setCodeError(true);
       }
     } catch {
+      setCodeErrorMsg('שגיאת חיבור. נסו שנית.');
       setCodeError(true);
     } finally {
       setVerifying(false);
@@ -186,7 +191,7 @@ export default function Navbar({ role }: NavbarProps) {
               autoFocus
             />
             {codeError && (
-              <p className="mt-2 text-center text-sm text-red-600">קוד שגוי. נסו שנית.</p>
+              <p className="mt-2 text-center text-sm text-red-600">{codeErrorMsg}</p>
             )}
             <div className="mt-4 flex gap-3">
               <button
@@ -249,6 +254,8 @@ function buildLinks(role: UserRole | null) {
       { href: '/dashboard', label: 'לוח מרצה' },
       { href: '/admin', label: 'ניהול' },
       { href: '/admin/users', label: 'משתמשים' },
+      { href: '/admin/lecturers', label: 'מרצים' },
+      { href: '/admin/students', label: 'סטודנטים' },
       { href: '/admin/ads', label: 'מודעות' },
     ];
   }

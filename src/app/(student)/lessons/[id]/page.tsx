@@ -13,6 +13,14 @@ interface Props {
   params: { id: string };
 }
 
+function trackView(lessonId: string, lessonTitle: string, type: string) {
+  fetch('/api/tracking/view', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lessonId, lessonTitle, type }),
+  }).catch(() => {});
+}
+
 export default function LessonDetailPage({ params }: Props) {
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
@@ -27,14 +35,17 @@ export default function LessonDetailPage({ params }: Props) {
           return;
         }
         const raw = snap.data();
-        setLesson({
+        const loaded = {
           id: snap.id,
           ...raw,
           createdAt:
             raw.createdAt instanceof Timestamp ? raw.createdAt.toMillis() : raw.createdAt ?? 0,
           updatedAt:
             raw.updatedAt instanceof Timestamp ? raw.updatedAt.toMillis() : raw.updatedAt ?? 0,
-        } as Lesson);
+        } as Lesson;
+        setLesson(loaded);
+        // Track page view
+        trackView(loaded.id, loaded.title, 'view');
       } catch (err) {
         console.error(err);
         setNotFound(true);
@@ -177,6 +188,7 @@ export default function LessonDetailPage({ params }: Props) {
                         href={lesson.podcastUrl}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => trackView(lesson.id, lesson.title, 'podcast')}
                         className="flex flex-col items-center gap-2 rounded-xl border border-[#00b6e5] bg-[#f0fbff] p-5 text-center transition hover:bg-[#e0f5ff]"
                       >
                         <span className="text-3xl">🎙️</span>
@@ -191,6 +203,7 @@ export default function LessonDetailPage({ params }: Props) {
                         href={lesson.quizUrl}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => trackView(lesson.id, lesson.title, 'quiz')}
                         className="flex flex-col items-center gap-2 rounded-xl border border-[#00b6e5] bg-[#f0fbff] p-5 text-center transition hover:bg-[#e0f5ff]"
                       >
                         <span className="text-3xl">📝</span>
@@ -205,6 +218,7 @@ export default function LessonDetailPage({ params }: Props) {
                         href={lesson.presentationUrl}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => trackView(lesson.id, lesson.title, 'presentation')}
                         className="flex flex-col items-center gap-2 rounded-xl border border-[#00b6e5] bg-[#f0fbff] p-5 text-center transition hover:bg-[#e0f5ff]"
                       >
                         <span className="text-3xl">📊</span>

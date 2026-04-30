@@ -21,6 +21,35 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [registerOpen, setRegisterOpen] = useState(false);
 
+  // Password reset state
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+
+  async function handleResetSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setResetLoading(true);
+    setResetError(null);
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+      if (!res.ok) {
+        const body = await res.json();
+        throw new Error(body.error ?? 'שגיאה בשליחה');
+      }
+      setResetSent(true);
+    } catch (err: unknown) {
+      setResetError(err instanceof Error ? err.message : 'שגיאה בשליחת המייל');
+    } finally {
+      setResetLoading(false);
+    }
+  }
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -159,14 +188,22 @@ function LoginForm() {
           </button>
         </form>
 
-        {/* Register button */}
-        <div className="mt-5 text-center">
+        {/* Register + Forgot password */}
+        <div className="mt-5 flex items-center justify-center gap-4 text-sm">
           <button
             type="button"
             onClick={() => setRegisterOpen(true)}
-            className="text-sm text-[#00b6e5] hover:underline font-medium"
+            className="text-[#00b6e5] hover:underline font-medium"
           >
             להרשמה
+          </button>
+          <span className="text-gray-300">|</span>
+          <button
+            type="button"
+            onClick={() => { setResetOpen(true); setResetSent(false); setResetError(null); setResetEmail(email); }}
+            className="text-gray-500 hover:text-[#00b6e5] hover:underline"
+          >
+            שכחתי סיסמה
           </button>
         </div>
 
@@ -181,6 +218,68 @@ function LoginForm() {
           onClose={() => setRegisterOpen(false)}
           defaultRole={roleHint === 'lecturer' ? 'lecturer' : 'student'}
         />
+      )}
+
+      {/* Password reset modal */}
+      {resetOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-8 shadow-2xl">
+            {resetSent ? (
+              <div className="text-center space-y-4">
+                <div className="text-4xl">📬</div>
+                <h3 className="text-lg font-bold text-[#383838]">המייל נשלח!</h3>
+                <p className="text-sm text-[#666666]">
+                  אם הכתובת קיימת במערכת, תקבל מייל עם קישור לאיפוס הסיסמה תוך מספר דקות.
+                </p>
+                <p className="text-xs text-gray-400">בדוק גם בתיקיית הספאם.</p>
+                <button
+                  onClick={() => setResetOpen(false)}
+                  className="btn-primary w-full py-2.5"
+                >
+                  סגירה
+                </button>
+              </div>
+            ) : (
+              <>
+                <h3 className="text-lg font-bold text-[#383838] mb-1">שחזור סיסמה</h3>
+                <p className="text-sm text-[#666666] mb-5">הזן את כתובת המייל שלך ונשלח לך קישור לאיפוס.</p>
+
+                {resetError && (
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                    {resetError}
+                  </div>
+                )}
+
+                <form onSubmit={handleResetSubmit} className="space-y-4">
+                  <input
+                    type="email"
+                    required
+                    value={resetEmail}
+                    onChange={(e) => setResetEmail(e.target.value)}
+                    placeholder="example@email.com"
+                    className="input-field"
+                    dir="ltr"
+                    autoFocus
+                  />
+                  <button
+                    type="submit"
+                    disabled={resetLoading}
+                    className={clsx('btn-primary w-full py-2.5', resetLoading && 'opacity-60 cursor-not-allowed')}
+                  >
+                    {resetLoading ? 'שולח...' : 'שליחת קישור לאיפוס'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResetOpen(false)}
+                    className="w-full text-center text-sm text-gray-400 hover:text-gray-600"
+                  >
+                    ביטול
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

@@ -17,8 +17,7 @@
     "nodemailer": "^8.0.6",
     "react": "^18",
     "react-dom": "^18",
-    "resend": "^6.9.4",
-    "tailwindcss-rtl": "latest",
+"tailwindcss-rtl": "latest",
     "zod": "latest"
   },
   "devDependencies": {

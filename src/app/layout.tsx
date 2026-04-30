@@ -5,6 +5,7 @@ import TopBanner from '@/components/TopBanner';
 import SideScroller from '@/components/SideScroller';
 import AnnouncementPopup from '@/components/AnnouncementPopup';
 import CookieConsent from '@/components/CookieConsent';
+import ErrorLogger from '@/components/ErrorLogger';
 
 const heebo = Heebo({
   subsets: ['hebrew', 'latin'],
@@ -55,6 +56,9 @@ export default function RootLayout({
 
         {/* Cookie / email consent banner */}
         <CookieConsent />
+
+        {/* Global unhandled rejection logger */}
+        <ErrorLogger />
       </body>
     </html>
   );
