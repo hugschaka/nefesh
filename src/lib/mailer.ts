@@ -1,24 +1,17 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function sendMail(opts: {
   to: string | string[];
   subject: string;
   html: string;
 }) {
-  await transporter.sendMail({
-    from: `נפש יהודי <${process.env.SMTP_USER}>`,
-    to: opts.to,
+  const { error } = await resend.emails.send({
+    from: 'נפש יהודי <onboarding@resend.dev>',
+    to: Array.isArray(opts.to) ? opts.to : [opts.to],
     subject: opts.subject,
     html: opts.html,
   });
+  if (error) throw new Error(error.message);
 }
