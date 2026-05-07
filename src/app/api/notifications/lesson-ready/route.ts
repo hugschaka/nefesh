@@ -30,23 +30,20 @@ export async function POST(req: NextRequest) {
     }
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://web-app-rho-gray.vercel.app';
-    // Use admin email as proxy recipient until custom domain verified in Resend
-    const adminEmail = process.env.ADMIN_EMAIL ?? 'danielrozner11@gmail.com';
 
     await sendMail({
-      to: adminEmail,
-      subject: `[→ ${email}] הקבצים לשיעור "${lesson.title}" מוכנים`,
+      to: email,
+      subject: `הקבצים לשיעור "${lesson.title}" מוכנים`,
       html: `
         <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #383838;">
-          <p style="background:#fff3cd;padding:8px;border-radius:4px;font-size:12px;">📧 יועד ל: <strong>${email}</strong></p>
           <h2 style="color: #00b6e5;">הקבצים שלך מוכנים!</h2>
           <p>שלום,</p>
           <p>הקבצים עבור השיעור <strong>"${lesson.title}"</strong> הוכנו בהצלחה ומוכנים לצפייה.</p>
           <a
-            href="${siteUrl}/lessons/${lessonId}"
+            href="${siteUrl}/dashboard"
             style="display:inline-block;background:#00b6e5;color:#fff;padding:12px 28px;border-radius:9999px;text-decoration:none;font-weight:bold;margin-top:16px;"
           >
-            לצפייה בשיעור
+            לאישור השיעור בדשבורד
           </a>
           <p style="color:#666;margin-top:28px;font-size:12px;border-top:1px solid #eee;padding-top:12px;">
             נפש יהודי - מרכז ההרצאות והתכנים
