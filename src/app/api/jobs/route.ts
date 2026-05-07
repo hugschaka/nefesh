@@ -3,8 +3,6 @@ import { adminAuth, adminDb } from '@/lib/firebase-admin';
 import { FieldValue } from 'firebase-admin/firestore';
 import { sendMail } from '@/lib/mailer';
 
-const BOT_BASE_URL = process.env.BOT_BASE_URL ?? 'http://localhost:3001';
-
 // ─── POST /api/jobs ────────────────────────────────────────────────────────────
 // Creates a lesson + job document in Firestore, then forwards the job to the
 // automation bot. Returns { lessonId } on success.
@@ -112,46 +110,10 @@ export async function POST(req: NextRequest) {
             </p>
           </div>
         `,
-      }).catch(() => {}); // fire-and-forget
+      }).catch((e) => console.error('[jobs] email failed:', e));
     }
   } catch { /* never blocks job creation */ }
 
-  // 7. Forward job to the automation bot (best-effort — don't fail the request)
-  try {
-    const botRes = await fetch(`${BOT_BASE_URL}/api/jobs`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jobId, lessonId, lecturerId, sourceDocUrls }),
-    });
-
-    if (!botRes.ok) {
-      const errorText = await botRes.text().catch(() => 'unknown error');
-      console.error(`[jobs] Bot returned ${botRes.status}: ${errorText}`);
-
-      await Promise.all([
-        lessonRef.update({ status: 'error', updatedAt: now }),
-        jobRef.update({ status: 'error', progressLabel: 'שגיאת חיבור לבוט', updatedAt: now }),
-      ]);
-
-      return NextResponse.json(
-        { lessonId, warning: 'הבוט לא זמין — העבודה נשמרה לניסיון מחדש' },
-        { status: 202 }
-      );
-    }
-  } catch (err) {
-    console.error('[jobs] Failed to reach bot:', err);
-
-    await Promise.all([
-      lessonRef.update({ status: 'error', updatedAt: now }),
-      jobRef.update({ status: 'error', progressLabel: 'שגיאת חיבור לבוט', updatedAt: now }),
-    ]);
-
-    return NextResponse.json(
-      { lessonId, warning: 'הבוט לא נגיש — העבודה נשמרה לניסיון מחדש' },
-      { status: 202 }
-    );
-  }
-
-  // 7. Return new lesson ID
+  // 7. Return job IDs — the bot polls Firestore for queued jobs automatically
   return NextResponse.json({ lessonId, jobId }, { status: 201 });
 }

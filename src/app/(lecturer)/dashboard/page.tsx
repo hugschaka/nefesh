@@ -53,7 +53,6 @@ export default function LecturerDashboardPage() {
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadPhase, setUploadPhase] = useState<UploadPhase>('idle');
   const [formError, setFormError] = useState<string | null>(null);
-  const [debugLog, setDebugLog] = useState<string[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [approvingJobId, setApprovingJobId] = useState<string | null>(null);
   const [editModal, setEditModal] = useState<{
@@ -135,19 +134,11 @@ export default function LecturerDashboardPage() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setFormError(null);
-    setDebugLog([]);
-
-    const log = (msg: string) => {
-      console.log('[Upload]', msg);
-      setDebugLog((prev) => [...prev, msg]);
-    };
 
     if (!user) {
       setFormError('לא מחוברים למערכת. אנא התחברו מחדש.');
       return;
     }
-
-    log(`User: ${user.uid}`);
 
     const parsed = UploadLessonSchema.safeParse({ title });
     if (!parsed.success) {
@@ -160,17 +151,12 @@ export default function LecturerDashboardPage() {
       return;
     }
 
-    log(`File: ${file.name} (${(file.size / 1024).toFixed(0)} KB, ${file.type})`);
-
     setUploadPhase('uploading');
     requestNotificationPermission();
 
     try {
       const fileType = resolveFileType(file.type);
-
-      log('מאמת זהות...');
       const token = await user.getIdToken(true);
-      log('אימות OK — מעלה...');
 
       const timestamp = Date.now();
       const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -179,7 +165,6 @@ export default function LecturerDashboardPage() {
       const encodedPath = encodeURIComponent(storagePath);
       const uploadUrl = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o?uploadType=media&name=${encodedPath}`;
 
-      log(`POST → firebasestorage.googleapis.com`);
       const uploadResp = await fetch(uploadUrl, {
         method: 'POST',
         headers: {
@@ -190,24 +175,19 @@ export default function LecturerDashboardPage() {
       });
 
       if (!uploadResp.ok) {
-        const errBody = await uploadResp.text().catch(() => '');
-        log(`שגיאה ${uploadResp.status}: ${errBody.slice(0, 150)}`);
         throw new Error(`שגיאת העלאה: HTTP ${uploadResp.status}`);
       }
 
       const uploadData = await uploadResp.json();
-      log('העלאה הושלמה!');
       setUploadProgress(100);
 
       const downloadToken = uploadData.downloadTokens;
       const fileUrl = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodedPath}?alt=media&token=${downloadToken}`;
-      log('קיבלנו URL — יוצר שיעור...');
 
       setUploadPhase('processing');
       setUploadProgress(0);
       setShowProcessingModal(true);
 
-      log('יוצר שיעור ו-job דרך השרת...');
       const createResp = await fetch('/api/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -221,20 +201,16 @@ export default function LecturerDashboardPage() {
       });
       if (!createResp.ok) {
         const err = await createResp.json().catch(() => ({}));
-        throw new Error(err.error || `שגיאת שרת ${createResp.status}`);
+        throw new Error(err.error || 'שגיאה ביצירת משימה. נסו שנית.');
       }
-      const { lessonId, jobId } = await createResp.json();
-      log(`✓ שיעור: ${lessonId} | job: ${jobId}`);
 
       setTitle('');
       setFile(null);
       setUploadProgress(0);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err: unknown) {
-      const code = (err as any)?.code ?? '';
-      const msg = err instanceof Error ? err.message : String(err);
-      log(`CAUGHT: code=${code} msg=${msg}`);
-      setFormError(code ? `שגיאה (${code}): ${msg}` : msg || 'שגיאה בהעלאה. נסו שנית.');
+      const msg = err instanceof Error ? err.message : 'שגיאה בהעלאה. נסו שנית.';
+      setFormError(msg);
       setUploadPhase('idle');
     }
   }
@@ -314,12 +290,6 @@ export default function LecturerDashboardPage() {
             {formError && (
               <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {formError}
-              </div>
-            )}
-
-            {debugLog.length > 0 && (
-              <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-xs font-mono text-gray-600 space-y-0.5 leading-5" dir="ltr">
-                {debugLog.map((line, i) => <div key={i}>{line}</div>)}
               </div>
             )}
 
