@@ -177,7 +177,7 @@ export default function LessonDetailPage({ params }: Props) {
               </div>
 
               {/* ── Bot-generated content ── */}
-              {(lesson.mindMapUrl || lesson.quizUrl || lesson.presentationUrl) && (
+              {(lesson.mindMapUrl || lesson.quizUrl || lesson.presentationUrl || lesson.rawPresentationUrl) && (
                 <div className="mt-8 border-t border-gray-100 pt-6">
                   <h2 className="mb-4 text-lg font-bold text-[#383838]">תכנים נוספים לשיעור זה</h2>
                   <div className="grid gap-3 sm:grid-cols-3">
@@ -212,8 +212,8 @@ export default function LessonDetailPage({ params }: Props) {
                       </a>
                     )}
 
-                    {/* Presentation */}
-                    {lesson.presentationUrl && (
+                    {/* Presentation card — shown only when no Google Slides embed */}
+                    {!lesson.rawPresentationUrl?.includes('docs.google.com/presentation') && lesson.presentationUrl && (
                       <a
                         href={lesson.presentationUrl}
                         target="_blank"
@@ -223,11 +223,30 @@ export default function LessonDetailPage({ params }: Props) {
                       >
                         <span className="text-3xl">📊</span>
                         <span className="font-semibold text-[#383838]">מצגת</span>
-                        <span className="text-xs text-[#666666]">הורידו את המצגת</span>
+                        <span className="text-xs text-[#666666]">פתחו את המצגת</span>
                       </a>
                     )}
 
                   </div>
+
+                  {/* Google Slides embed — full width below the cards */}
+                  {lesson.rawPresentationUrl?.includes('docs.google.com/presentation') && (
+                    <div className="mt-4">
+                      <p className="mb-2 font-semibold text-[#383838] text-right">📊 מצגת</p>
+                      <div
+                        className="relative w-full overflow-hidden rounded-xl border border-[#00b6e5]"
+                        style={{ paddingTop: '56.25%' }}
+                      >
+                        <iframe
+                          src={`${lesson.rawPresentationUrl.split('?')[0].replace(/\/edit.*$/, '')}/embed?start=false&loop=false&delayms=3000`}
+                          className="absolute inset-0 w-full h-full"
+                          allowFullScreen
+                          title="מצגת"
+                          onLoad={() => trackView(lesson.id, lesson.title, 'presentation')}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
