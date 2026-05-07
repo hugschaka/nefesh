@@ -19,7 +19,7 @@ export interface Lesson {
   updatedAt: number;
   // Bot-generated content (populated after processing)
   notebookUrl?: string;
-  podcastUrl?: string;
+  mindMapUrl?: string;
   quizUrl?: string;
   presentationUrl?: string;
   rawPresentationUrl?: string;
@@ -34,7 +34,7 @@ export interface Job {
   progressLabel: string; // Hebrew status text
   status: 'queued' | 'processing' | 'pending_approval' | 'edit_requested' | 'published' | 'failed' | 'session_expired' | 'rejected' | 'error';
   errorScreenshotUrl?: string;
-  podcastUrl?: string;
+  mindMapUrl?: string;
   quizUrl?: string;
   presentationUrl?: string;
   rawPresentationUrl?: string;
