@@ -7,7 +7,7 @@ import AdminLoginClient from '../AdminLoginClient';
 
 const TYPE_LABELS: Record<string, string> = {
   view: 'צפייה',
-  podcast: 'פודקאסט',
+  mindmap: 'מפת חשיבה',
   quiz: 'חידון',
   presentation: 'מצגת',
   notebook: 'מחברת',

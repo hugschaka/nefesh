@@ -177,23 +177,23 @@ export default function LessonDetailPage({ params }: Props) {
               </div>
 
               {/* ── Bot-generated content ── */}
-              {(lesson.podcastUrl || lesson.quizUrl || lesson.presentationUrl) && (
+              {(lesson.mindMapUrl || lesson.quizUrl || lesson.presentationUrl) && (
                 <div className="mt-8 border-t border-gray-100 pt-6">
                   <h2 className="mb-4 text-lg font-bold text-[#383838]">תכנים נוספים לשיעור זה</h2>
                   <div className="grid gap-3 sm:grid-cols-3">
 
-                    {/* Podcast */}
-                    {lesson.podcastUrl && (
+                    {/* Mind Map */}
+                    {lesson.mindMapUrl && (
                       <a
-                        href={lesson.podcastUrl}
+                        href={lesson.mindMapUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        onClick={() => trackView(lesson.id, lesson.title, 'podcast')}
+                        onClick={() => trackView(lesson.id, lesson.title, 'mindmap')}
                         className="flex flex-col items-center gap-2 rounded-xl border border-[#00b6e5] bg-[#f0fbff] p-5 text-center transition hover:bg-[#e0f5ff]"
                       >
-                        <span className="text-3xl">🎙️</span>
-                        <span className="font-semibold text-[#383838]">פודקאסט</span>
-                        <span className="text-xs text-[#666666]">האזינו לסיכום קולי</span>
+                        <span className="text-3xl">🗺️</span>
+                        <span className="font-semibold text-[#383838]">מפת חשיבה</span>
+                        <span className="text-xs text-[#666666]">צפו במפת הרעיונות</span>
                       </a>
                     )}
 

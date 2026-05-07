@@ -54,7 +54,7 @@ export default function StudentLessonsPage() {
             isPublished: true,
             status: raw.status ?? 'done',
             notebookUrl: raw.notebookUrl,
-            podcastUrl: raw.podcastUrl,
+            mindMapUrl: raw.mindMapUrl,
             quizUrl: raw.quizUrl,
             presentationUrl: raw.presentationUrl,
             rawPresentationUrl: raw.rawPresentationUrl,

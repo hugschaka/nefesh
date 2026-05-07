@@ -4,7 +4,7 @@ interface PendingJob {
   jobId: string;
   lessonId: string;
   lessonTitle: string;
-  podcastUrl?: string;
+  mindMapUrl?: string;
   quizUrl?: string;
   presentationUrl?: string;
   rawPresentationUrl?: string;
@@ -90,10 +90,10 @@ export default function AdminLessonsClient({ initialJobs }: { initialJobs: Pendi
                   <span>📊</span> מצגת
                 </a>
               )}
-              {job.podcastUrl && job.podcastUrl !== job.notebookUrl && (
-                <a href={job.podcastUrl} target="_blank" rel="noopener noreferrer"
+              {job.mindMapUrl && job.mindMapUrl !== job.notebookUrl && (
+                <a href={job.mindMapUrl} target="_blank" rel="noopener noreferrer"
                    className="flex items-center gap-1.5 rounded-lg border border-purple-300 px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-50 transition">
-                  <span>🎙️</span> פודקאסט
+                  <span>🗺️</span> מפת חשיבה
                 </a>
               )}
               {job.quizUrl && job.quizUrl !== job.notebookUrl && (

@@ -32,10 +32,10 @@ export default function LessonCard({ lesson }: LessonCardProps) {
     day: 'numeric',
   });
 
-  const hasPodcast = !!lesson.podcastUrl;
+  const hasMindMap = !!lesson.mindMapUrl;
   const hasQuiz = !!lesson.quizUrl;
   const hasPresentation = !!lesson.presentationUrl;
-  const hasBotContent = hasPodcast || hasQuiz || hasPresentation;
+  const hasBotContent = hasMindMap || hasQuiz || hasPresentation;
 
   return (
     <Link href={`/lessons/${lesson.id}`} className="group block h-full">
@@ -81,9 +81,9 @@ export default function LessonCard({ lesson }: LessonCardProps) {
           {/* Bot-generated content badges */}
           {hasBotContent && (
             <div className="mt-3 flex gap-1.5 flex-wrap">
-              {hasPodcast && (
+              {hasMindMap && (
                 <span className="rounded-pill bg-[#f0fbff] border border-[#00b6e5]/30 px-2 py-0.5 text-xs text-[#00b6e5] font-medium">
-                  🎙️ פודקאסט
+                  🗺️ מפת חשיבה
                 </span>
               )}
               {hasQuiz && (

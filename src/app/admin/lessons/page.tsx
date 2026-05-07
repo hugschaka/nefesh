@@ -33,7 +33,7 @@ async function getPendingJobs() {
           jobId: docSnap.id,
           lessonId: data.lessonId ?? '',
           lessonTitle: data.lessonTitle ?? '',
-          podcastUrl: data.podcastUrl,
+          mindMapUrl: data.mindMapUrl,
           quizUrl: data.quizUrl,
           presentationUrl: data.presentationUrl,
           rawPresentationUrl: data.rawPresentationUrl,
