@@ -56,8 +56,11 @@ export default function LecturerDashboardPage() {
   const [debugLog, setDebugLog] = useState<string[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [approvingJobId, setApprovingJobId] = useState<string | null>(null);
-  const [editRequestJobId, setEditRequestJobId] = useState<string | null>(null);
-  const [editRequestText, setEditRequestText] = useState('');
+  const [editModal, setEditModal] = useState<{
+    job: Job;
+    phase: 'input' | 'success';
+    text: string;
+  } | null>(null);
   const [showProcessingModal, setShowProcessingModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -85,7 +88,7 @@ export default function LecturerDashboardPage() {
           progressLabel: raw.progressLabel ?? '',
           status: raw.status ?? 'queued',
           errorScreenshotUrl: raw.errorScreenshotUrl,
-          podcastUrl: raw.podcastUrl,
+          mindMapUrl: raw.mindMapUrl,
           quizUrl: raw.quizUrl,
           presentationUrl: raw.presentationUrl,
           rawPresentationUrl: raw.rawPresentationUrl,
@@ -263,19 +266,19 @@ export default function LecturerDashboardPage() {
     }
   }
 
-  async function submitEditRequest(job: Job) {
-    if (!editRequestText.trim()) return;
+  async function submitEditRequest() {
+    if (!editModal || !editModal.text.trim()) return;
+    const { job } = editModal;
     setApprovingJobId(job.id);
     try {
       const res = await fetch(`/api/jobs/${job.id}/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'edit-request', details: editRequestText }),
+        body: JSON.stringify({ action: 'edit-request', details: editModal.text }),
       });
       if (!res.ok) throw new Error((await res.json()).error);
-      setEditRequestJobId(null);
-      setEditRequestText('');
-      setJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: 'edit_requested', editRequest: editRequestText } : j));
+      setJobs(prev => prev.filter(j => j.id !== job.id));
+      setEditModal(prev => prev ? { ...prev, phase: 'success' } : null);
     } catch (err) {
       console.error('Edit request error:', err);
       alert('שגיאה בשליחת בקשת העריכה');
@@ -441,10 +444,10 @@ export default function LecturerDashboardPage() {
                           <span>📊</span> מצגת
                         </a>
                       )}
-                      {job.podcastUrl && job.podcastUrl !== job.notebookUrl && (
-                        <a href={job.podcastUrl} target="_blank" rel="noopener noreferrer"
+                      {job.mindMapUrl && job.mindMapUrl !== job.notebookUrl && (
+                        <a href={job.mindMapUrl} target="_blank" rel="noopener noreferrer"
                            className="flex items-center gap-1.5 rounded-lg border border-purple-300 px-3 py-1.5 text-sm text-purple-600 hover:bg-purple-50 transition">
-                          <span>🎙️</span> פודקאסט
+                          <span>🗺️</span> מפת חשיבה
                         </a>
                       )}
                       {job.quizUrl && job.quizUrl !== job.notebookUrl && (
@@ -455,59 +458,26 @@ export default function LecturerDashboardPage() {
                       )}
                     </div>
 
-                    {/* Edit-request form (shown when lecturer clicks "בקשת עריכה") */}
-                    {editRequestJobId === job.id && (
-                      <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-3">
-                        <p className="text-sm font-semibold text-orange-800">פרט מה צריך לשנות:</p>
-                        <textarea
-                          value={editRequestText}
-                          onChange={(e) => setEditRequestText(e.target.value)}
-                          rows={3}
-                          placeholder="לדוגמה: יש שגיאות בשקופית 3, צריך להסיר את הסעיף על..."
-                          className="w-full rounded-lg border border-orange-200 bg-white px-3 py-2 text-sm text-[#383838] outline-none focus:border-orange-400 resize-none"
-                        />
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => submitEditRequest(job)}
-                            disabled={!editRequestText.trim() || approvingJobId === job.id}
-                            className={clsx(
-                              'flex-1 rounded-pill bg-orange-500 py-2 text-sm font-semibold text-white hover:bg-orange-600 transition',
-                              (!editRequestText.trim() || approvingJobId === job.id) && 'opacity-50 cursor-not-allowed'
-                            )}
-                          >
-                            {approvingJobId === job.id ? 'שולח...' : 'שלח בקשת עריכה'}
-                          </button>
-                          <button
-                            onClick={() => { setEditRequestJobId(null); setEditRequestText(''); }}
-                            className="rounded-pill border border-gray-300 px-4 py-2 text-sm text-[#666666] hover:bg-gray-50 transition"
-                          >
-                            ביטול
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
                     {/* Action buttons */}
-                    {editRequestJobId !== job.id && (
-                      <div className="flex gap-3 pt-2 border-t border-gray-100">
-                        <button
-                          onClick={() => approveLessonForPublishing(job)}
-                          disabled={approvingJobId === job.id}
-                          className={clsx(
-                            'btn-primary flex-1 py-2.5',
-                            approvingJobId === job.id && 'opacity-60 cursor-not-allowed'
-                          )}
-                        >
-                          {approvingJobId === job.id ? 'מעבד...' : '✓ אשר ופרסם'}
-                        </button>
-                        <button
-                          onClick={() => { setEditRequestJobId(job.id); setEditRequestText(''); }}
-                          className="flex-1 rounded-pill border border-orange-300 py-2.5 text-sm font-semibold text-orange-600 hover:bg-orange-50 transition"
-                        >
-                          ✏️ בקשת עריכה
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex gap-3 pt-2 border-t border-gray-100">
+                      <button
+                        onClick={() => approveLessonForPublishing(job)}
+                        disabled={approvingJobId === job.id}
+                        className={clsx(
+                          'btn-primary flex-1 py-2.5',
+                          approvingJobId === job.id && 'opacity-60 cursor-not-allowed'
+                        )}
+                      >
+                        {approvingJobId === job.id ? 'מעבד...' : '✓ אשר ופרסם'}
+                      </button>
+                      <button
+                        onClick={() => setEditModal({ job, phase: 'input', text: '' })}
+                        disabled={approvingJobId === job.id}
+                        className="flex-1 rounded-pill border border-orange-300 py-2.5 text-sm font-semibold text-orange-600 hover:bg-orange-50 transition"
+                      >
+                        ✏️ בקשת עריכה
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -533,6 +503,62 @@ export default function LecturerDashboardPage() {
           )}
         </div>
       </main>
+
+      {/* Edit-request modal */}
+      {editModal && (
+        <div className="fixed inset-0 z-[300] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl p-8 space-y-5" dir="rtl">
+            {editModal.phase === 'input' ? (
+              <>
+                <h3 className="text-xl font-bold text-[#383838]">מה תרצה לשנות?</h3>
+                <p className="text-sm text-[#666666]">
+                  תאר את השינויים הרצויים בשיעור <strong>"{editModal.job.lessonTitle}"</strong>
+                </p>
+                <textarea
+                  value={editModal.text}
+                  onChange={(e) => setEditModal(prev => prev ? { ...prev, text: e.target.value } : null)}
+                  rows={5}
+                  placeholder="לדוגמה: יש שגיאות בשקופית 3, צריך להסיר את הסעיף על..."
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-[#383838] outline-none focus:border-[#00b6e5] focus:bg-white resize-none transition"
+                  autoFocus
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={submitEditRequest}
+                    disabled={!editModal.text.trim() || approvingJobId === editModal.job.id}
+                    className={clsx(
+                      'flex-1 rounded-pill bg-[#00b6e5] py-3 text-sm font-bold text-white hover:bg-[#0099c4] transition',
+                      (!editModal.text.trim() || approvingJobId === editModal.job.id) && 'opacity-50 cursor-not-allowed'
+                    )}
+                  >
+                    {approvingJobId === editModal.job.id ? 'שולח...' : 'שלח'}
+                  </button>
+                  <button
+                    onClick={() => setEditModal(null)}
+                    className="rounded-pill border border-gray-300 px-6 py-3 text-sm text-[#666666] hover:bg-gray-50 transition"
+                  >
+                    ביטול
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-5xl text-center">✅</div>
+                <h3 className="text-xl font-bold text-[#383838] text-center">תודה — נשלח לעיבוד!</h3>
+                <p className="text-sm text-[#666666] text-center leading-relaxed">
+                  הבקשה התקבלה. הבוט יחזור לנוטבוק, יטמיע את ההערות שלך וישלח גרסה מעודכנת לאישורך.
+                </p>
+                <button
+                  onClick={() => setEditModal(null)}
+                  className="btn-primary w-full py-3 text-base"
+                >
+                  סגירה
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Processing modal — shown after upload, close button closes the window */}
       {showProcessingModal && (

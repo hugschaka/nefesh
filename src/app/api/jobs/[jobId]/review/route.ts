@@ -64,12 +64,24 @@ export async function POST(
     if (!details?.trim()) {
       return NextResponse.json({ error: 'נדרש פירוט לבקשת עריכה' }, { status: 400 });
     }
-    await jobRef.update({
-      status: 'edit_requested',
-      progressLabel: 'ממתין לעריכה',
-      editRequest: details.trim(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
+    await Promise.all([
+      jobRef.update({
+        status: 'edit_requested',
+        progressLabel: 'ממתין לעריכה',
+        editRequest: details.trim(),
+        // Clear old product URLs — bot will re-generate
+        presentationUrl: null,
+        rawPresentationUrl: null,
+        mindMapUrl: null,
+        quizUrl: null,
+        updatedAt: FieldValue.serverTimestamp(),
+      }),
+      adminDb.collection('lessons').doc(job.lessonId).update({
+        isPublished: false,
+        status: 'edit_requested',
+        updatedAt: FieldValue.serverTimestamp(),
+      }),
+    ]);
     return NextResponse.json({ ok: true, action: 'edit-request' });
   }
 
